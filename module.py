@@ -70,7 +70,7 @@ def build_landmark(date_img, landmark):
     except:
         print('File is open, Process will pause')
 
-def main(url=None,cap = 0,display_alltime=False,display_out = False,time_ref = 10,line_notify=5):
+def main(device_name,url=None,cap = 0,display_alltime=False,display_out = False,time_ref = 10,line_notify=5):
     dummy_start = None
     cap = cv2.VideoCapture(cap)
 
@@ -224,12 +224,12 @@ def main(url=None,cap = 0,display_alltime=False,display_out = False,time_ref = 1
                 date_json = f'{yyyy}-{mm}-{dd}'
                 time_json = date_json + f' {Time}'
 
-                text_for_post = {"img_name": file_json,"img_date": date_json, "img_time": time_json,
+                text_for_post = {"people_device": device_name,"img_name": file_json,"img_date": date_json, "img_time": time_json,
                         "people_total": count_all_json, "people_advice": store_emp,
                         "people_other": store_cus}
 
                 text = {"Status_post": 'Yes'}
-
+                print(text_for_post)
                 status_post = request_post(url,text_for_post)
                 if status_post == 0:
                     text['Status_post'] = 'No'
