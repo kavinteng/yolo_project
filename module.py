@@ -144,12 +144,16 @@ def main(url=None,cap = 0,display_alltime=False,display_out = False,time_ref = 1
 
                         try:
                             shirt = image[ymin_new:ymax_new, xmin_new:xmax_new]
-                            lower1 = np.array([167, 111, 60])
-                            upper1 = np.array([170, 122, 101])
+                            # lower1 = np.array([167, 111, 60])
+                            # upper1 = np.array([170, 122, 101])
+                            lower1 = np.array([28, 27, 58])
+                            upper1 = np.array([71, 39, 255])
                             mask1 = cv2.inRange(shirt, lower1, upper1)
 
-                            lower2_1 = np.array([44, 29, 28])
-                            upper2_1 = np.array([47, 35, 28])
+                            # lower2_1 = np.array([44, 29, 28])
+                            # upper2_1 = np.array([47, 35, 28])
+                            lower2_1 = np.array([27, 15, 10])
+                            upper2_1 = np.array([29, 22, 45])
                             mask2_1 = cv2.inRange(shirt, lower2_1, upper2_1)
 
                             result_final2_1 = cv2.bitwise_or(mask2_1, mask1)
