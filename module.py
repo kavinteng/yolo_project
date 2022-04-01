@@ -380,7 +380,7 @@ def set_polygon():
         # if len(array1) != 0:
         #     print(array1)
         k = cv2.waitKey(0)
-        if k == ord('q'):
+        if k == 113:
             break
         if k == 100:
             print('clear array')
