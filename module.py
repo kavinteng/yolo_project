@@ -382,21 +382,21 @@ def set_polygon():
         k = cv2.waitKey(0)
         if k == ord('q'):
             break
-        if k == ord('d'):
+        if k == 100:
             print('clear array')
             array1 = []
             array2 = []
-        if k == ord('z'):
+        if k == 122:
             print('save array1')
             result1 = array1
             array1 = []
             array2 = []
-        if k == ord('x'):
+        if k == 120:
             print('save array2')
             result2 = array2
             array1 = []
             array2 = []
-        if k == ord('c'):
+        if k == 99:
             try:
                 print(f'check array\n{result1}\n{result2}')
             except:
