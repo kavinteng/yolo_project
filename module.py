@@ -7,6 +7,8 @@ import csv
 import shutil
 import os
 import requests, json
+import sqlite3
+from configparser import ConfigParser
 
 model = torch.hub.load('ultralytics/yolov5', 'yolov5l', pretrained=True)
 model.conf = 0.1
@@ -70,7 +72,7 @@ def build_landmark(date_img, landmark):
     except:
         print('File is open, Process will pause')
 
-def main(device_name,url=None,cap = 0,display_alltime=False,display_out = False,time_ref = 10,line_notify=5):
+def main(device_name,url=None,cap = 0,display_alltime=False,display_out = False,time_ref = 10,line_notify=5,polygon_employ=None,polygon_nodetect=None):
     dummy_start = None
     cap = cv2.VideoCapture(cap)
 
@@ -84,6 +86,10 @@ def main(device_name,url=None,cap = 0,display_alltime=False,display_out = False,
     fourcc = cv2.VideoWriter_fourcc(*'mp4v')
 
     while True:
+        try:
+            repost_logfile(url)
+        except:
+            pass
         date_img = build_folder_file()
         output = []
         Date = datetime.datetime.now().strftime("%d/%m/%Y")
@@ -118,6 +124,7 @@ def main(device_name,url=None,cap = 0,display_alltime=False,display_out = False,
             check_best = True
             employee = 0
             customer = 0
+            walking_pass = 0
             results = model(frame, size=640)
             out2 = results.pandas().xyxy[0]
 
@@ -128,6 +135,9 @@ def main(device_name,url=None,cap = 0,display_alltime=False,display_out = False,
                     ymin = int(out2.iat[i, 1])
                     xmax = int(out2.iat[i, 2])
                     ymax = int(out2.iat[i, 3])
+
+                    cenx = (xmax + xmin) // 2
+                    ceny = (ymax + ymin) // 2
                     conf = out2.iat[i, 4]
                     obj_name = out2.iat[i, 6]
                     if obj_name == 'person' or obj_name == '0':
@@ -142,51 +152,55 @@ def main(device_name,url=None,cap = 0,display_alltime=False,display_out = False,
                         if ymax_new > 360:
                             ymax_new = 360
 
-                        try:
-                            shirt = image[ymin_new:ymax_new, xmin_new:xmax_new]
-                            # lower1 = np.array([167, 111, 60])
-                            # upper1 = np.array([170, 122, 101])
-                            lower1 = np.array([28, 27, 58])
-                            upper1 = np.array([71, 39, 255])
-                            mask1 = cv2.inRange(shirt, lower1, upper1)
-
-                            # lower2_1 = np.array([44, 29, 28])
-                            # upper2_1 = np.array([47, 35, 28])
-                            lower2_1 = np.array([27, 15, 10])
-                            upper2_1 = np.array([29, 22, 45])
-                            mask2_1 = cv2.inRange(shirt, lower2_1, upper2_1)
-
-                            result_final2_1 = cv2.bitwise_or(mask2_1, mask1)
-
-                            gray_thresh = cv2.adaptiveThreshold(result_final2_1, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
-                                                                cv2.THRESH_BINARY_INV, 11, 1)
-                            kernel = np.ones((3,3), np.uint8)
-                            closing = cv2.morphologyEx(gray_thresh,cv2.MORPH_CLOSE, kernel, iterations=5)
-                            contours, hierachy = cv2.findContours(closing, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-                            if contours == () or contours == []:
-                                color = (255, 0, 0)
-                            else:
-                                array_area = []
-                                for cnt in contours:
-                                    area = cv2.contourArea(cnt)
-                                    array_area.append(area)
-
-                                out_sum = sum(array_area)
-                                thresh = 200
-                                if out_sum > thresh:
-                                    color = (0, 0, 255)
-                                else:
-                                    color = (255, 0, 0)
-                        except:
-                            color = (255, 0, 0)
+                        # try:
+                        #     shirt = image[ymin_new:ymax_new, xmin_new:xmax_new]
+                        #     # lower1 = np.array([167, 111, 60])
+                        #     # upper1 = np.array([170, 122, 101])
+                        #     lower1 = np.array([28, 27, 58])
+                        #     upper1 = np.array([71, 39, 255])
+                        #     mask1 = cv2.inRange(shirt, lower1, upper1)
+                        #
+                        #     # lower2_1 = np.array([44, 29, 28])
+                        #     # upper2_1 = np.array([47, 35, 28])
+                        #     lower2_1 = np.array([27, 15, 10])
+                        #     upper2_1 = np.array([29, 22, 45])
+                        #     mask2_1 = cv2.inRange(shirt, lower2_1, upper2_1)
+                        #
+                        #     result_final2_1 = cv2.bitwise_or(mask2_1, mask1)
+                        #
+                        #     gray_thresh = cv2.adaptiveThreshold(result_final2_1, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+                        #                                         cv2.THRESH_BINARY_INV, 11, 1)
+                        #     kernel = np.ones((3,3), np.uint8)
+                        #     closing = cv2.morphologyEx(gray_thresh,cv2.MORPH_CLOSE, kernel, iterations=5)
+                        #     contours, hierachy = cv2.findContours(closing, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+                        #     if contours == () or contours == []:
+                        #         color = (255, 0, 0)
+                        #     else:
+                        #         array_area = []
+                        #         for cnt in contours:
+                        #             area = cv2.contourArea(cnt)
+                        #             array_area.append(area)
+                        #
+                        #         out_sum = sum(array_area)
+                        #         thresh = 200
+                        #         if out_sum > thresh:
+                        #             color = (0, 0, 255)
+                        #         else:
+                        #             color = (255, 0, 0)
+                        # except:
+                        #     color = (255, 0, 0)
 
                         output_landmark.append([Time,xmin,ymin,xmax,ymax])
                         build_landmark(date_img, output_landmark)
+
+                        color = draw_polygon(cenx, ceny, polygon_nodetect, polygon_employ)
 
                         if color == (0, 0, 255):
                             employee += 1
                         elif color == (255, 0, 0):
                             customer += 1
+                        elif color == (0, 255, 0):
+                            walking_pass += 1
 
                         cv2.rectangle(frame, (xmin, ymin), (xmax, ymax), color, 2)
                         # cv2.rectangle(frame, (xmin_new, ymin_new), (xmax_new, ymax_new), color, 2)
@@ -228,15 +242,23 @@ def main(device_name,url=None,cap = 0,display_alltime=False,display_out = False,
                         "people_total": count_all_json, "people_advice": store_emp,
                         "people_other": store_cus}
 
-                text = {"Status_post": 'Yes'}
-                print(text_for_post)
-                status_post = request_post(url,text_for_post)
-                if status_post == 0:
-                    text['Status_post'] = 'No'
-                    print(text_for_post,text)
-                elif status_post == 2:
-                    text['Status_post'] = 'empty url'
-                    print(text_for_post,text)
+                text = {"Status_post": 'Addlog'}
+
+                try:
+                    status_post = request_post(url,text_for_post)
+                    if status_post == 0:
+                        text['Status_post'] = 'No'
+                        print(text_for_post, text)
+                    elif status_post == 1:
+                        text['Status_post'] = 'Yes'
+                        print(text_for_post, text)
+                    elif status_post == 2:
+                        text['Status_post'] = 'empty url'
+                        print(text_for_post, text)
+                except:
+                    print(text_for_post)
+                    print('add to logfile')
+                    addlog(device_name,file_json,date_json,time_json,count_all_json,store_emp,store_cus)
 
                 # --------------------------------------------------------
                 status_post_csv = text['Status_post']
@@ -287,7 +309,7 @@ def request_post(url, text):
         status_post = 2
     else:
         response = requests.post(url, json=text)
-        print('------posting------')
+        print('\n------posting------')
         if response.ok:
             print("Upload completed successfully!")
             status_post = 1
@@ -298,3 +320,155 @@ def request_post(url, text):
             status_post = 0
 
     return status_post
+
+def create_logfile():
+    con = sqlite3.connect('logfile.db')
+    cur = con.cursor()
+    cur.execute('''CREATE TABLE log
+                   (people_device char(7), img_name char(15), img_date char(15), img_time char(15), 
+                   people_total int, people_advice int, people_other int)''')
+
+    con.commit()
+    con.close()
+
+def addlog(device_name,file_json,date_json,time_json,count_all_json,store_emp,store_cus):
+    con = sqlite3.connect('logfile.db')
+    cur = con.cursor()
+    sql = '''INSERT INTO log(people_device, img_name, img_date, img_time,
+                   people_total, people_advice, people_other) VALUES (?, ?, ?, ?, ?, ?, ?)'''
+    task = (device_name,file_json,date_json,time_json,count_all_json,store_emp,store_cus)
+    cur.execute(sql, task)
+    con.commit()
+    con.close()
+
+def repost_logfile(url):
+    con = sqlite3.connect('logfile.db')
+    cur = con.cursor()
+    array = []
+    for row in cur.execute('SELECT * FROM log'):
+        device_name, file_json, date_json, time_json, count_all_json, store_emp, store_cus = row
+        array.append([device_name, file_json, date_json, time_json, count_all_json, store_emp, store_cus])
+
+    for row_store in array:
+        text_for_post = {"people_device": row_store[0], "img_name": row_store[1], "img_date": row_store[2],
+                         "img_time": row_store[3],"people_total": row_store[4], "people_advice": row_store[5],
+                         "people_other": row_store[6]}
+        status_post = request_post(url, text_for_post)
+        if status_post == 1:
+            print(text_for_post)
+            print('repost successfully')
+            cur.execute("DELETE FROM log WHERE img_time=?",(row_store[3],))
+            con.commit()
+
+    con.close()
+
+def set_polygon():
+    global array1,array2, img
+    # reading the image
+    size_img_vdo = (640, 360)
+    cap = cv2.VideoCapture(0)
+    array1 = []
+    array2 = []
+    while True:
+        _, img = cap.read()
+        img = cv2.resize(img, size_img_vdo)
+
+        # displaying the image
+        cv2.imshow('image', img)
+
+        cv2.setMouseCallback('image', click_event)
+        # if len(array1) != 0:
+        #     print(array1)
+        k = cv2.waitKey(0)
+        if k == ord('q'):
+            break
+        if k == ord('d'):
+            print('clear array')
+            array1 = []
+            array2 = []
+        if k == ord('z'):
+            print('save array1')
+            result1 = array1
+            array1 = []
+            array2 = []
+        if k == ord('x'):
+            print('save array2')
+            result2 = array2
+            array1 = []
+            array2 = []
+        if k == ord('c'):
+            try:
+                print(f'check array\n{result1}\n{result2}')
+            except:
+                print(f'Non save value: {array1}')
+        else:
+            pass
+        # close the window
+    cv2.destroyAllWindows()
+
+    return result1, result2
+
+def draw_polygon(cenx, ceny, polygon1, polygon2):
+    contours1 = np.array(polygon1)
+    contours2 = np.array(polygon2)
+    image = np.zeros((360, 640, 3))
+    cv2.fillPoly(image, pts=[contours1], color=(2, 255, 255))
+    cv2.fillPoly(image, pts=[contours2], color=(1, 0, 255))
+    if int(image[ceny, cenx, 0]) == 1:
+        color = (0, 0, 255)
+    elif int(image[ceny, cenx, 0]) == 2:
+        color = (255, 0, 0)
+    else:
+        color = (0, 255, 0)
+    # cv2.imshow("filledPolygon", image)
+    return color
+
+def click_event(event, x, y, flags, params):
+    global array1,array2, img
+    if event == cv2.EVENT_LBUTTONDOWN:
+        font = cv2.FONT_HERSHEY_SIMPLEX
+        # print(x, ",", y)
+        cv2.putText(img, str(x) + ',' +
+                    str(y), (x, y), font,
+                    1, (255, 0, 0), 2)
+        array1.append([x, y])
+        array2.append([x, y])
+        cv2.imshow('image', img)
+
+def write_polygon_value(polygon_employ,polygon_nodetect):
+    write_config = ConfigParser()
+    write_config.add_section('polygon')
+    write_config.set('polygon', 'polygon_employ',str(polygon_employ))
+    write_config.set('polygon', 'polygon_no_detect', str(polygon_nodetect))
+    cfgfile = open('config.ini','w')
+    write_config.write(cfgfile)
+    cfgfile.close()
+
+def read_polygon_value():
+    read_config = ConfigParser()
+    read_config.read('config.ini')
+    polygon_employ = read_config.get('polygon','polygon_employ')
+    polygon_nodetect = read_config.get('polygon', 'polygon_no_detect')
+    polygon_employ = json.loads(polygon_employ)
+    polygon_nodetect = json.loads(polygon_nodetect)
+    return polygon_employ,polygon_nodetect
+# def read_db():
+#     con = sqlite3.connect('logfile.db')
+#     cur = con.cursor()
+#     array = []
+#     for row in cur.execute('SELECT * FROM log'):
+#         print(row)
+#         device_name,file_json,date_json,time_json,count_all_json,store_emp,store_cus = row
+#         print(time_json)
+#         array.append(time_json)
+#         # cur.execute('''DELETE FROM log WHERE img_time=?''', (time_json,))
+#         # print('delete')
+#     print(array)
+#     for time_array in array:
+#         cur.execute('''DELETE FROM log WHERE img_time=?''', (time_array,))
+#         print('delete')
+#     con.commit()
+#     con.close()
+# if __name__ == '__main__':
+#     read_db()
+#     repost_logfile()
