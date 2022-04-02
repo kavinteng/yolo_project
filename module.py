@@ -35,7 +35,7 @@ def build_folder_file():
         with open('backup_file/Head-count(not for open).csv') as f:
             pass
     except:
-        header = ['File name','วัน', 'เวลา','จำนวนคนทั้งหมด', 'พนักงาน advice', 'ลูกค้า', 'POST STATUS']
+        header = ['File name','วัน', 'เวลา','จำนวนคนทั้งหมด', 'พนักงาน advice', 'ลูกค้า', 'จำนวนคนที่เดินผ่าน', 'POST STATUS']
         with open('backup_file/Head-count(not for open).csv', 'w', encoding='UTF-8-sig', newline='') as f:
             writer = csv.writer(f)
             writer.writerow(header)
@@ -201,13 +201,15 @@ def main(device_name,url=None,cap = 0,display_alltime=False,display_out = False,
                             customer += 1
                         elif color == (0, 255, 0):
                             walking_pass += 1
+                        elif color == (0, 0, 0):
+                            pass
 
                         cv2.rectangle(frame, (xmin, ymin), (xmax, ymax), color, 2)
                         # cv2.rectangle(frame, (xmin_new, ymin_new), (xmax_new, ymax_new), color, 2)
                         # cv2.putText(frame, 'Head: {:.2f}'.format(acc * 100), (xmin, ymin - 5),
                         #             cv2.FONT_HERSHEY_COMPLEX_SMALL, 1, (0, 0, 255), 1)
                         cv2.rectangle(frame, (0, 0), (200,50), (255, 255, 255), -1)
-                        cv2.putText(frame, 'Head Count:{}'.format(employee+customer), (10, 30), cv2.FONT_HERSHEY_COMPLEX_SMALL, 1,
+                        cv2.putText(frame, 'Head Count:{}'.format(employee+customer+walking_pass), (10, 30), cv2.FONT_HERSHEY_COMPLEX_SMALL, 1,
                                     (0, 0, 0),2)
 
                         # cv2.imshow('asd',frame)
@@ -217,12 +219,13 @@ def main(device_name,url=None,cap = 0,display_alltime=False,display_out = False,
 
             if best_count < 5:
                 best_count += 1
-                count_all = employee + customer
+                count_all = employee + customer + walking_pass
                 if count_all > old:
                     old = count_all
                     store_frame = frame
                     store_emp = employee
                     store_cus = customer
+                    store_walkpass = walking_pass
 
             else:
                 best_count = 0
@@ -232,7 +235,7 @@ def main(device_name,url=None,cap = 0,display_alltime=False,display_out = False,
                 file_name = Time.replace(':', '-')
                 # post json ----------------------------------------------
 
-                count_all_json = store_emp + store_cus
+                count_all_json = store_emp + store_cus + store_walkpass
                 file_json = file_name + '.jpg'
                 dd,mm,yyyy = Date.split('/')
                 date_json = f'{yyyy}-{mm}-{dd}'
@@ -240,7 +243,7 @@ def main(device_name,url=None,cap = 0,display_alltime=False,display_out = False,
 
                 text_for_post = {"people_device": device_name,"img_name": file_json,"img_date": date_json, "img_time": time_json,
                         "people_total": count_all_json, "people_advice": store_emp,
-                        "people_other": store_cus}
+                        "people_other": store_cus, "storefront": store_walkpass}
 
                 text = {"Status_post": 'Addlog'}
 
@@ -258,11 +261,11 @@ def main(device_name,url=None,cap = 0,display_alltime=False,display_out = False,
                 except:
                     print(text_for_post)
                     print('add to logfile')
-                    addlog(device_name,file_json,date_json,time_json,count_all_json,store_emp,store_cus)
+                    addlog(device_name,file_json,date_json,time_json,count_all_json,store_emp,store_cus,store_walkpass)
 
                 # --------------------------------------------------------
                 status_post_csv = text['Status_post']
-                output.append([file_json,Date,Time,count_all_json,store_emp,store_cus,status_post_csv])
+                output.append([file_json,Date,Time,count_all_json,store_emp,store_cus,store_walkpass,status_post_csv])
 
                 img_file = date_img + '/' + file_name + '.jpg'
                 cv2.imwrite(img_file,store_frame)
@@ -326,17 +329,17 @@ def create_logfile():
     cur = con.cursor()
     cur.execute('''CREATE TABLE log
                    (people_device char(7), img_name char(15), img_date char(15), img_time char(15), 
-                   people_total int, people_advice int, people_other int)''')
+                   people_total int, people_advice int, people_other int, storefront int)''')
 
     con.commit()
     con.close()
 
-def addlog(device_name,file_json,date_json,time_json,count_all_json,store_emp,store_cus):
+def addlog(device_name,file_json,date_json,time_json,count_all_json,store_emp,store_cus,store_walkpass):
     con = sqlite3.connect('logfile.db')
     cur = con.cursor()
     sql = '''INSERT INTO log(people_device, img_name, img_date, img_time,
-                   people_total, people_advice, people_other) VALUES (?, ?, ?, ?, ?, ?, ?)'''
-    task = (device_name,file_json,date_json,time_json,count_all_json,store_emp,store_cus)
+                   people_total, people_advice, people_other) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'''
+    task = (device_name,file_json,date_json,time_json,count_all_json,store_emp,store_cus,store_walkpass)
     cur.execute(sql, task)
     con.commit()
     con.close()
@@ -346,13 +349,13 @@ def repost_logfile(url):
     cur = con.cursor()
     array = []
     for row in cur.execute('SELECT * FROM log'):
-        device_name, file_json, date_json, time_json, count_all_json, store_emp, store_cus = row
-        array.append([device_name, file_json, date_json, time_json, count_all_json, store_emp, store_cus])
+        device_name, file_json, date_json, time_json, count_all_json, store_emp, store_cus, store_walkpass = row
+        array.append([device_name, file_json, date_json, time_json, count_all_json, store_emp, store_cus, store_walkpass])
 
     for row_store in array:
         text_for_post = {"people_device": row_store[0], "img_name": row_store[1], "img_date": row_store[2],
                          "img_time": row_store[3],"people_total": row_store[4], "people_advice": row_store[5],
-                         "people_other": row_store[6]}
+                         "people_other": row_store[6],"storefront": row_store[7]}
         status_post = request_post(url, text_for_post)
         if status_post == 1:
             print(text_for_post)
@@ -375,11 +378,19 @@ def set_polygon():
         img = cv2.resize(img, size_img_vdo)
 
         # displaying the image
-        cv2.imshow('image', img)
+        # cv2.imshow('image', img)
 
-        cv2.setMouseCallback('image', click_event)
+        # cv2.setMouseCallback('image', click_event)
         # if len(array1) != 0:
         #     print(array1)
+        if check_click == 2:
+            contours1 = np.array(result1)
+            contours2 = np.array(result2)
+            cv2.fillPoly(img, pts=[contours2], color=(2, 255, 255))
+            cv2.fillPoly(img, pts=[contours1], color=(1, 0, 255))
+        # cv2.fillPoly(img, pts=[result3], color=(3, 0, 255))
+        cv2.imshow('image', img)
+        cv2.setMouseCallback('image', click_event)
         k = cv2.waitKey(0)
         if (k == 113) and (check_click ==3):
             break
@@ -387,6 +398,7 @@ def set_polygon():
             print('clear array')
             array1 = []
             array2 = []
+            check_click = 0
         elif (k == 122) and (check_click ==0):
             print('save array1')
             result1 = array1
@@ -415,6 +427,11 @@ def set_polygon():
 def draw_polygon(cenx, ceny, polygon1, polygon2):
     contours1 = np.array(polygon1)
     contours2 = np.array(polygon2)
+    array_miny = []
+    for val in polygon1:
+        array_miny.append(val[1])
+    for val2 in polygon2:
+        array_miny.append(val2[1])
     image = np.zeros((360, 640, 3))
     cv2.fillPoly(image, pts=[contours1], color=(2, 255, 255))
     cv2.fillPoly(image, pts=[contours2], color=(1, 0, 255))
@@ -422,8 +439,10 @@ def draw_polygon(cenx, ceny, polygon1, polygon2):
         color = (0, 0, 255)
     elif int(image[ceny, cenx, 0]) == 2:
         color = (255, 0, 0)
-    else:
+    elif ceny > min(array_miny):
         color = (0, 255, 0)
+    else:
+        color = (0, 0, 0)
     # cv2.imshow("filledPolygon", image)
     return color
 
