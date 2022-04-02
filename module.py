@@ -369,6 +369,7 @@ def set_polygon():
     cap = cv2.VideoCapture(0)
     array1 = []
     array2 = []
+    check_click = 0
     while True:
         _, img = cap.read()
         img = cv2.resize(img, size_img_vdo)
@@ -380,25 +381,28 @@ def set_polygon():
         # if len(array1) != 0:
         #     print(array1)
         k = cv2.waitKey(0)
-        if k == 113:
+        if (k == 113) and (check_click ==3):
             break
         elif k == 100:
             print('clear array')
             array1 = []
             array2 = []
-        elif k == 122:
+        elif (k == 122) and (check_click ==0):
             print('save array1')
             result1 = array1
             array1 = []
             array2 = []
-        elif k == 120:
+            check_click += 1
+        elif (k == 120) and (check_click ==1):
             print('save array2')
             result2 = array2
             array1 = []
             array2 = []
-        elif k == 99:
+            check_click += 1
+        elif (k == 99) and (check_click ==2):
             try:
                 print(f'check array\n{result1}\n{result2}')
+                check_click += 1
             except:
                 print(f'Non save value: {array1}')
         else:
